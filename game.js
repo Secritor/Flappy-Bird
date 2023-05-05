@@ -5,6 +5,7 @@ const ctx = cvs.getContext("2d");
 
 // Выделяем переменные с которыми будем работать дальше
 let frame = 0;
+const DEGREE = Math.PI / 180;
 
 // Выделим и загрузим спрайты изобрежний которые будем использовать дальше
 const sprite = new Image();
@@ -85,6 +86,7 @@ const fg = {
   x: 0,
   y: cvs.height - 112,
 
+  dx: 2,
   draw: function () {
     ctx.drawImage(
       sprite,
@@ -112,6 +114,12 @@ const fg = {
       this.h
     );
   },
+
+  update: function () {
+    if (gameState.current == gameState.game) {
+      this.x = (this.x - this.dx) % (this.w / 2);
+    }
+  },
 };
 // Находим координаты птички и отрисовываем ее
 const bird = {
@@ -129,22 +137,30 @@ const bird = {
   speed: 0,
   gravity: 0.25,
   jump: 4.6,
-
+  // добавляем угол наклона птички при прыжке и падении
+  rotation: 0,
   frame: 0,
 
   draw: function () {
     let bird = this.animation[this.frame];
+
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+
     ctx.drawImage(
       sprite,
       bird.sX,
       bird.sY,
       this.w,
       this.h,
-      this.x - this.w / 2,
-      this.y - this.h / 2,
+      -this.w / 2,
+      -this.h / 2,
       this.w,
       this.h
     );
+
+    ctx.restore();
   },
 
   flap: function () {
@@ -162,6 +178,7 @@ const bird = {
     if (gameState.current == gameState.getReady) {
       // после конца игры возвращаем птичку на исходное положение
       this.y = 150;
+      this.rotation = 0 * DEGREE;
     } else {
       this.speed += this.gravity;
       this.y += this.speed;
@@ -171,6 +188,18 @@ const bird = {
         if (gameState.current == gameState.game) {
           gameState.current = gameState.over;
         }
+      }
+      // если скорость больше чем значения прыжка то птичка падает вниз
+      // постепенное понижение наклона птички
+      if (this.speed >= this.jump) {
+        this.rotation = 90 * DEGREE;
+        this.frame = 1;
+      } else if (this.speed >= this.jump / 2) {
+        this.rotation = 55 * DEGREE;
+      } else if (this.speed >= this.jump / 3) {
+        this.rotation = 35 * DEGREE;
+      } else {
+        this.rotation = -15 * DEGREE;
       }
     }
   },
@@ -246,6 +275,7 @@ function draw() {
 // Обновление кадров
 function update() {
   bird.update();
+  fg.update();
 }
 
 // Повторение , вызов функции отрисовки и обновления по таймеру - создание анимации.
