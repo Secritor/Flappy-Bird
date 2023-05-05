@@ -49,6 +49,7 @@ const bg = {
   x: 0,
   y: cvs.height - 226,
 
+  dx: 2,
   draw: function () {
     ctx.drawImage(
       sprite,
@@ -74,6 +75,12 @@ const bg = {
       this.w,
       this.h
     );
+  },
+
+  update: function () {
+    if (gameState.current == gameState.game) {
+      this.x = (this.x - this.dx) % (this.w / 1.2);
+    }
   },
 };
 
@@ -195,9 +202,9 @@ const bird = {
         this.rotation = 90 * DEGREE;
         this.frame = 1;
       } else if (this.speed >= this.jump / 2) {
-        this.rotation = 55 * DEGREE;
+        this.rotation = 60 * DEGREE;
       } else if (this.speed >= this.jump / 3) {
-        this.rotation = 35 * DEGREE;
+        this.rotation = 30 * DEGREE;
       } else {
         this.rotation = -15 * DEGREE;
       }
@@ -261,11 +268,87 @@ const gameOver = {
   },
 };
 
+// Находим и отрисовываем трубы
+
+const pipes = {
+  position: [],
+
+  top: {
+    sX: 553,
+    sY: 0,
+  },
+  bottom: {
+    sX: 502,
+    sY: 0,
+  },
+
+  w: 53,
+  h: 400,
+  gap: 85,
+  maxYPos: -150,
+  dx: 2,
+
+  draw: function () {
+    for (let i = 0; i < this.position.length; i++) {
+      let p = this.position[i];
+
+      let topYPos = p.y;
+      let bottomYPos = p.y + this.h + this.gap;
+
+      // верхняя труба
+      ctx.drawImage(
+        sprite,
+        this.top.sX,
+        this.top.sY,
+        this.w,
+        this.h,
+        p.x,
+        topYPos,
+        this.w,
+        this.h
+      );
+
+      // нижняя труба
+      ctx.drawImage(
+        sprite,
+        this.bottom.sX,
+        this.bottom.sY,
+        this.w,
+        this.h,
+        p.x,
+        bottomYPos,
+        this.w,
+        this.h
+      );
+    }
+  },
+
+  update: function () {
+    if (gameState.current !== gameState.game) return;
+    if (frame % 100 == 0) {
+      this.position.push({
+        x: cvs.width,
+        y: this.maxYPos * (Math.random() + 1),
+      });
+    }
+
+    for (let i = 0; i < this.position.length; i++) {
+      let p = this.position[i];
+
+      p.x -= this.dx;
+      // если трубы выходят за пределы cavnas холста удаляем их из массива
+      if(p.x + this.w <= 0) {
+        this.position.shift();
+      }
+    }
+  },
+};
 // Отрисовка
 function draw() {
   ctx.fillStyle = "#70c5ce";
   ctx.fillRect(0, 0, cvs.width, cvs.height);
   bg.draw();
+  pipes.draw();
   fg.draw();
   bird.draw();
   getReady.draw();
@@ -276,6 +359,8 @@ function draw() {
 function update() {
   bird.update();
   fg.update();
+  // bg.update();
+  pipes.update();
 }
 
 // Повторение , вызов функции отрисовки и обновления по таймеру - создание анимации.
