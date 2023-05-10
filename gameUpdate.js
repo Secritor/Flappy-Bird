@@ -10,8 +10,8 @@ const DEGREE = Math.PI / 180;
 // Выделим и загрузим спрайты изобрежний которые будем использовать дальше
 const sprite = new Image();
 sprite.src = "img/sprite.png";
-// Подключаем звук
 
+// Подключаем звук
 const SCORE = new Audio();
 SCORE.src = "audio/sfx_point.wav";
 
@@ -27,15 +27,15 @@ HIT.src = "audio/sfx_hit.wav";
 const SWOOSHING = new Audio();
 SWOOSHING.src = "audio/sfx_swooshing.wav";
 
-// Кнопка начала игры
-
+// кнопка продолжения игры
 const startBtn = {
   x: 120,
   y: 263,
   w: 83,
   h: 29,
 };
-// Пишем логику стадий игры 1 - Начало игры . 2 - Процесс игры . 3 - Конец игры
+
+// Пишем стадии игры 1 - Начало игры . 2 - Процесс игры . 3 - Конец игры
 const gameState = {
   // текущее значение
   current: 0,
@@ -46,7 +46,36 @@ const gameState = {
   // конец
   over: 2,
 };
-// Контроллер игры
+// Создаем счет
+const score = {
+  best: parseInt(localStorage.getItem("best")) || 0,
+  value: 0,
+
+  draw: function () {
+    ctx.fillStyle = "#FFF";
+    ctx.strokeStyle = "#000";
+
+    if (gameState.current == gameState.game) {
+      ctx.lineWidth = 2;
+      ctx.font = "35px Teko";
+      ctx.fillText(this.value, cvs.width / 2, 50);
+      ctx.strokeText(this.value, cvs.width / 2, 50);
+    } else if (gameState.current == gameState.over) {
+      // значение счета
+      ctx.font = "25px Teko";
+      ctx.fillText(this.value, 225, 186);
+      ctx.strokeText(this.value, 225, 186);
+      // лучшее значение счета
+      ctx.fillText(this.best, 225, 228);
+      ctx.strokeText(this.best, 225, 228);
+    }
+  },
+
+  reset: function () {
+    this.value = 0;
+  },
+};
+// Контроллер
 cvs.addEventListener("click", function (e) {
   switch (gameState.current) {
     // если состояние игры getReady то при клике игра запускается, меняет current на game
@@ -62,6 +91,7 @@ cvs.addEventListener("click", function (e) {
 
     // если игра закончена нас возвращает в начало на getReady
     case gameState.over:
+      // находим кнопку Start
       let rect = cvs.getBoundingClientRect();
       let clickX = e.clientX - rect.left;
       let clickY = e.clientY - rect.top;
@@ -80,17 +110,20 @@ cvs.addEventListener("click", function (e) {
       break;
   }
 });
-// Находим координаты и отрисовываем фон
-const bg = {
-  sX: 0,
-  sY: 0,
-  w: 275,
-  h: 226,
-  x: 0,
-  y: cvs.height - 226,
 
-  dx: 2,
-  draw: function () {
+// Отрисовываем фон
+class Background {
+  constructor(sX, sY, w, h, x, y, dx) {
+    this.sX = sX;
+    this.sY = sY;
+    this.w = w;
+    this.h = h;
+    this.x = x;
+    this.y = y;
+    this.dx = dx;
+  }
+
+  draw() {
     ctx.drawImage(
       sprite,
       this.sX,
@@ -115,82 +148,36 @@ const bg = {
       this.w,
       this.h
     );
-  },
-
-  update: function () {
-    if (gameState.current == gameState.game) {
-      this.x = (this.x - this.dx) % (this.w / 1.2);
-    }
-  },
-};
-
-// Находи координаты и отрисовываем передний план . fg = foreground
-const fg = {
-  sX: 276,
-  sY: 0,
-  w: 224,
-  h: 112,
-  x: 0,
-  y: cvs.height - 112,
-
-  dx: 2,
-  draw: function () {
-    ctx.drawImage(
-      sprite,
-      this.sX,
-      this.sY,
-      this.w,
-      this.h,
-      this.x,
-      this.y,
-      this.w,
-      this.h
-    );
-
-    // повторяет тот же прием что и с bg , добалвяем ширину чтобы отрисовать новое изображение
-    // после предыдущего
-    ctx.drawImage(
-      sprite,
-      this.sX,
-      this.sY,
-      this.w,
-      this.h,
-      this.x + this.w,
-      this.y,
-      this.w,
-      this.h
-    );
-  },
-
-  update: function () {
+  }
+  update() {
     if (gameState.current == gameState.game) {
       this.x = (this.x - this.dx) % (this.w / 2);
     }
-  },
-};
-// Находим координаты птички и отрисовываем ее
-const bird = {
-  // находим 3 состояния птички через координаты на спрайте
-  animation: [
-    { sX: 276, sY: 112 },
-    { sX: 276, sY: 139 },
-    { sX: 276, sY: 164 },
-  ],
-  x: 50,
-  y: 150,
-  w: 34,
-  h: 26,
-  // добавляем скорость, прыжок и гравитацию для анимации передвижения птички
-  speed: 0,
-  gravity: 0.25,
-  jump: 4.6,
-  // добавляем угол наклона птички при прыжке и падении
-  rotation: 0,
+  }
+}
+// Создаем птичку
+class Bird {
+  constructor() {
+    // находим 3 состояния птички
+    this.animation = [
+      { sX: 276, sY: 112 },
+      { sX: 276, sY: 139 },
+      { sX: 276, sY: 164 },
+    ];
+    this.x = 50;
+    this.y = 150;
+    this.w = 34;
+    this.h = 26;
+    this.speed = 0;
+    this.gravity = 0.25;
+    this.jump = 4.6;
+    this.rotation = 0;
+    this.radius = 12;
+    this.frame = 0;
+    this.period = gameState.current == gameState.getReady ? 10 : 5;
+  }
 
-  radius: 12,
-  frame: 0,
-
-  draw: function () {
+  draw() {
     let bird = this.animation[this.frame];
 
     ctx.save();
@@ -210,14 +197,14 @@ const bird = {
     );
 
     ctx.restore();
-  },
+  }
 
-  flap: function () {
+  flap() {
     this.speed = -this.jump;
-  },
+  }
 
-  update: function () {
-    // если игра в состоянии getReady то птичка машет крыльями медленее
+  update() {
+    // если состояние игры getready то птичка машет крыльями медленнее
     this.period = gameState.current == gameState.getReady ? 10 : 5;
     // увеличиваем кадры на 1 каждый период
     this.frame += frame % this.period == 0 ? 1 : 0;
@@ -231,7 +218,6 @@ const bird = {
     } else {
       this.speed += this.gravity;
       this.y += this.speed;
-
       // если птичка касается пола то игра заканчивается
       if (this.y + this.h / 2 >= cvs.height - fg.h) {
         this.y = cvs.height - fg.h - this.h / 2;
@@ -253,89 +239,32 @@ const bird = {
         this.rotation = -15 * DEGREE;
       }
     }
-  },
+  }
 
-  speedReset: function () {
+  speedReset() {
     this.speed = 0;
-  },
-};
+  }
+}
+// Создаем трубы
+class Pipes {
+  constructor() {
+    this.position = [];
+    this.top = {
+      sX: 553,
+      sY: 0,
+    };
+    this.bottom = {
+      sX: 502,
+      sY: 0,
+    };
+    this.w = 53;
+    this.h = 400;
+    this.gap = 85;
+    this.maxYPos = -150;
+    this.dx = 2;
+  }
 
-// Рисуем начальное состояние "GET READY"
-const getReady = {
-  sX: 0,
-  sY: 228,
-  w: 173,
-  h: 152,
-  x: cvs.width / 2 - 173 / 2,
-  y: 80,
-
-  draw: function () {
-    // добавляем проверку на состояние игры чтобы отрисовать сообщение
-    if (gameState.current == gameState.getReady) {
-      ctx.drawImage(
-        sprite,
-        this.sX,
-        this.sY,
-        this.w,
-        this.h,
-        this.x,
-        this.y,
-        this.w,
-        this.h
-      );
-    }
-  },
-};
-
-// Рисуем сообщение "GAME OVER"
-
-const gameOver = {
-  sX: 175,
-  sY: 228,
-  w: 225,
-  h: 202,
-  x: cvs.width / 2 - 225 / 2,
-  y: 90,
-
-  draw: function () {
-    // добавляем проверку на состояние игры чтобы отрисовать сообщение
-
-    if (gameState.current == gameState.over) {
-      ctx.drawImage(
-        sprite,
-        this.sX,
-        this.sY,
-        this.w,
-        this.h,
-        this.x,
-        this.y,
-        this.w,
-        this.h
-      );
-    }
-  },
-};
-
-// Находим и отрисовываем трубы
-const pipes = {
-  position: [],
-
-  top: {
-    sX: 553,
-    sY: 0,
-  },
-  bottom: {
-    sX: 502,
-    sY: 0,
-  },
-
-  w: 53,
-  h: 400,
-  gap: 85,
-  maxYPos: -150,
-  dx: 2,
-
-  draw: function () {
+  draw() {
     for (let i = 0; i < this.position.length; i++) {
       let p = this.position[i];
 
@@ -368,9 +297,9 @@ const pipes = {
         this.h
       );
     }
-  },
+  }
 
-  update: function () {
+  update() {
     if (gameState.current !== gameState.game) return;
     if (frame % 100 == 0) {
       this.position.push({
@@ -419,44 +348,58 @@ const pipes = {
         localStorage.setItem("best", score.best);
       }
     }
-  },
+  }
 
-  reset: function () {
+  reset() {
     this.position = [];
-  },
-};
+  }
+}
+// Сообщение о заверешнии игры и начальный экран
+class Message {
+  constructor(sX, sY, w, h, x, y) {
+    this.sX = sX;
+    this.sY = sY;
+    this.w = w;
+    this.h = h;
+    this.x = x;
+    this.y = y;
+  }
 
-// счет
-
-const score = {
-  best: parseInt(localStorage.getItem("best")) || 0,
-  value: 0,
-
-  draw: function () {
-    ctx.fillStyle = "#FFF";
-    ctx.strokeStyle = "#000";
-
-    if (gameState.current == gameState.game) {
-      ctx.lineWidth = 2;
-      ctx.font = "35px Teko";
-      ctx.fillText(this.value, cvs.width / 2, 50);
-      ctx.strokeText(this.value, cvs.width / 2, 50);
-    } else if (gameState.current == gameState.over) {
-      // значение счета
-      ctx.font = "25px Teko";
-      ctx.fillText(this.value, 225, 186);
-      ctx.strokeText(this.value, 225, 186);
-      // лучшее значение счета
-      ctx.fillText(this.best, 225, 228);
-      ctx.strokeText(this.best, 225, 228);
+  draw() {
+    if (
+      gameState.current == gameState.getReady ||
+      gameState.current == gameState.over
+    ) {
+      ctx.drawImage(
+        sprite,
+        this.sX,
+        this.sY,
+        this.w,
+        this.h,
+        this.x,
+        this.y,
+        this.w,
+        this.h
+      );
     }
-  },
+  }
+}
 
-  reset: function () {
-    this.value = 0;
-  },
-};
-// Отрисовка
+// создает переменные из классов для работы с ними
+const bg = new Background(0, 0, 275, 226, 0, cvs.height - 226, 2);
+const fg = new Background(276, 0, 224, 112, 0, cvs.height - 112, 2);
+const bird = new Bird();
+const pipes = new Pipes();
+const getReady = new Message(0, 228, 173, 152, cvs.width / 2 - 173 / 2, 80);
+const gameOver = new Message(175, 228, 225, 202, cvs.width / 2 - 225 / 2, 90);
+
+function update() {
+  bird.update();
+  fg.update();
+
+  pipes.update();
+}
+
 function draw() {
   ctx.fillStyle = "#70c5ce";
   ctx.fillRect(0, 0, cvs.width, cvs.height);
@@ -466,20 +409,14 @@ function draw() {
   fg.draw();
   bird.draw();
 
-  getReady.draw();
-  gameOver.draw();
+  if (gameState.current !== gameState.over) {
+    getReady.draw();
+  } else {
+    gameOver.draw();
+  }
+
   score.draw();
 }
-
-// Обновление кадров
-function update() {
-  bird.update();
-  fg.update();
-  // bg.update();
-  pipes.update();
-}
-
-// Повторение , вызов функции отрисовки и обновления по таймеру - создание анимации.
 
 function loop() {
   update();
